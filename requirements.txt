@@ -2,5 +2,5 @@ python-telegram-bot==20.3
 firebase-admin==6.1.0
 pyzbar==0.1.8
 aiohttp==3.8.4
-Pillow==10.0.0
+Pillow==9.5.0
 numpy==1.26.2
