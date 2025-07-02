@@ -12,7 +12,8 @@ import cv2
 import numpy as np
 import io
 
-from config import TELEGRAM_BOT_TOKEN
+import os
+TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 
 logging.basicConfig(level=logging.INFO)
 
