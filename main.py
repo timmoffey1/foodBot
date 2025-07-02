@@ -11,6 +11,7 @@ import easyocr
 import cv2
 import numpy as np
 import io
+import json
 
 import os
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
@@ -18,7 +19,8 @@ TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 logging.basicConfig(level=logging.INFO)
 
 # Firebase
-cred = credentials.Certificate("firebase_key.json")
+firebase_key_dict = json.loads(os.environ["FIREBASE_KEY_JSON"])
+cred = credentials.Certificate(firebase_key_dict)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
