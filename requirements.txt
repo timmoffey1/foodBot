@@ -1,5 +1,5 @@
 python-telegram-bot==20.3
 firebase-admin
-aiohttp
 opencv-python-headless
-easyocr
+aiohttp
+Pillow
