@@ -7,13 +7,12 @@ from telegram.ext import (
 )
 import firebase_admin
 from firebase_admin import credentials, firestore
-import easyocr
 import cv2
 import numpy as np
 import io
+import os
 import json
 
-import os
 TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 
 logging.basicConfig(level=logging.INFO)
@@ -24,9 +23,6 @@ cred = credentials.Certificate(firebase_key_dict)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-# EasyOCR
-reader = easyocr.Reader(['en'])  # Языки для распознавания
-
 # Состояния
 CODE, QUALITY, REVIEW, CONFIRM_UPDATE = range(4)
 
@@ -34,7 +30,7 @@ CODE, QUALITY, REVIEW, CONFIRM_UPDATE = range(4)
 yes_no_keyboard = ReplyKeyboardMarkup([["Да", "Нет"]], one_time_keyboard=True, resize_keyboard=True)
 quality_keyboard = ReplyKeyboardMarkup([["1", "2", "3", "4", "5"]], one_time_keyboard=True, resize_keyboard=True)
 
-# Команда /start
+# /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Привет! Отправь фото с штрихкодом или введи его вручную:")
     return CODE
@@ -53,7 +49,7 @@ async def fetch_product_info(barcode: str):
                     return {"name": name, "brands": brands}
             return None
 
-# Обработка фото или текста
+# Распознавание кода
 async def code_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
 
@@ -63,11 +59,11 @@ async def code_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         np_arr = np.frombuffer(photo_bytes, np.uint8)
         image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
-        results = reader.readtext(image, detail=0)
-        barcodes = [r for r in results if r.isdigit() and len(r) >= 8]
+        barcode_detector = cv2.barcode_BarcodeDetector()
+        ok, decoded_info, _, _ = barcode_detector.detectAndDecode(image)
 
-        if barcodes:
-            code = barcodes[0]
+        if ok and decoded_info and decoded_info[0].isdigit():
+            code = decoded_info[0]
             await message.reply_text(f"Распознанный код: {code}")
         else:
             await message.reply_text("Не удалось распознать штрихкод. Попробуй ещё или введи вручную.")
@@ -149,7 +145,6 @@ async def code_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return QUALITY
 
-# Подтверждение редактирования
 async def confirm_update_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     answer = update.message.text.lower()
     if answer == "да":
@@ -165,7 +160,6 @@ async def confirm_update_handler(update: Update, context: ContextTypes.DEFAULT_T
         context.user_data.clear()
         return CODE
 
-# Оценка качества
 async def quality_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quality = update.message.text.strip()
     if quality not in ['1', '2', '3', '4', '5']:
@@ -182,7 +176,6 @@ async def quality_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return REVIEW
 
-# Отзыв
 async def review_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['review'] = update.message.text.strip()
     code = context.user_data['code']
@@ -213,12 +206,10 @@ async def review_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     return CODE
 
-# Отмена
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Операция отменена.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
-# Запуск
 def main():
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
